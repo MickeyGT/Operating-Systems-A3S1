@@ -1,0 +1,111 @@
+#include<iostream>
+#include<random>
+#include<time.h>
+#include<sys/types.h>
+#include<sys/wait.h>
+#include <unistd.h>
+#include<random>
+#include<time.h>
+#define LEFT 0
+#define RIGHT 1
+using namespace std;
+
+int count_in=0,count_out=0;
+
+pthread_mutex_t mutu = PTHREAD_MUTEX_INITIALIZER;
+
+bool sem[2];
+
+void in_tunnel(int type)
+{
+	pthread_mutex_lock(&mutu);
+	cout<<"Masina din "<<type<<" intra in tunel"<<endl;
+
+	count_in++;
+
+	pthread_mutex_unlock(&mutu);
+}
+
+void out_tunnel(int type)
+{
+	pthread_mutex_lock(&mutu);
+	cout<<"Masina din "<<type<<" iese din tunel"<<endl;
+
+	count_out++;
+
+	pthread_mutex_unlock(&mutu);
+}
+
+void *car(void *type)
+{
+	int car_type = *(int*)type;
+	free(type);
+
+	while(sem[car_type] == false) {;}
+
+	in_tunnel(car_type);
+
+	sleep(5);
+
+	out_tunnel(car_type);
+
+	return NULL;
+}
+
+void *control_center(void *arg)
+{
+	int timer;
+	while(1)
+	{
+		sem[LEFT] = true;
+		sem[RIGHT] = false;
+		timer = 0;
+		count_in = 0;
+		count_out = 0;
+
+		while(count_in < 3 && (++timer)<1000000){;}
+
+		sem[LEFT] = false;
+
+		while(count_out <count_in){;}
+
+		sleep(3);
+
+		sem[RIGHT] = true;
+		count_in = 0;
+		count_out = 0;
+		timer = 0;
+
+		while(count_in < 3 && (++timer)<1000000){;}
+
+		sem[RIGHT] = false;
+		timer = 0;
+
+		while(count_out < count_in){;}
+	}
+}
+
+int main()
+{
+	pthread_t cars[100],control;
+
+	srand(time(NULL));
+
+	pthread_create(&control,NULL,control_center,NULL);
+
+	for(int i = 0; i < 100; i++)
+	{
+		int *x = new int;
+		*x = rand()%2;
+		pthread_create(&cars[i],NULL,car,x);
+	}
+
+	for(int i = 0; i < 100; i++)
+	{
+		pthread_join(cars[i],NULL);
+	}
+
+	pthread_join(control,NULL);
+
+	return 0;
+}
