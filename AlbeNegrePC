@@ -1,0 +1,47 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<pthread.h>
+#include<signal.h>
+#include<unistd.h>
+#include<time.h>
+int owner=0,waitingWhite=0,waitingBlack=0,usingWhite=0,usingBlack=0;
+
+pthread_mutex_t ownerColor = PTHREAD_MUTEX_INITIALIZER;
+
+void useResource(int id, int color)
+{
+
+}
+
+owner()
+{
+    return owner;
+}
+
+void * Work(void *arg)
+{
+    int id,color;
+    color = rand()%2;
+    id = *((int*)arg);
+    free(arg);
+    while(1)
+    {
+        if(owner()==color)
+            useResource(id,color);
+    }
+}
+
+int main()
+{
+    srand(time(NULL));
+    pthread_t threads[100];
+    for(int i=0;i<100;i++)
+    {
+        int * id = (int)malloc (sizeof(int));
+        id=i;
+        pthread_create(&threads[i],NULL,Work,(void*)id);
+    }
+    return 0;
+}
+
+
