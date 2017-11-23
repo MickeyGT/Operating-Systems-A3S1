@@ -12,34 +12,50 @@ using namespace std;
 
 int count_in=0,count_out=0;
 
-pthread_mutex_t mutu = PTHREAD_MUTEX_INITIALIZER;
+int dist_count[2];
+
+pthread_mutex_t tunnel_in = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t tunnel_out = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t dist[2] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
 
 bool sem[2];
 
 void in_tunnel(int type)
 {
-	pthread_mutex_lock(&mutu);
+	pthread_mutex_lock(&tunnel_in);
 	cout<<"Masina din "<<type<<" intra in tunel"<<endl;
 
 	count_in++;
 
-	pthread_mutex_unlock(&mutu);
+	pthread_mutex_lock(&dist[type]);
+	dist_count[type]--;
+
+	pthread_mutex_unlock(&dist[type]);
+
+	pthread_mutex_unlock(&tunnel_in);
 }
 
 void out_tunnel(int type)
 {
-	pthread_mutex_lock(&mutu);
+	pthread_mutex_lock(&tunnel_out);
 	cout<<"Masina din "<<type<<" iese din tunel"<<endl;
 
 	count_out++;
 
-	pthread_mutex_unlock(&mutu);
+	pthread_mutex_unlock(&tunnel_out);
 }
 
 void *car(void *type)
 {
 	int car_type = *(int*)type;
 	free(type);
+
+	pthread_mutex_lock(&dist[car_type]);
+	dist_count[car_type]++;
+
+	pthread_mutex_unlock(&dist[car_type]);
+
+	sleep(5);
 
 	while(sem[car_type] == false) {;}
 
@@ -57,29 +73,38 @@ void *control_center(void *arg)
 	int timer;
 	while(1)
 	{
-		sem[LEFT] = true;
-		sem[RIGHT] = false;
 		timer = 0;
 		count_in = 0;
 		count_out = 0;
+		cout<<"Semaforul din stanga se face verde"<<endl;
+		sem[LEFT] = true;
+		sem[RIGHT] = false;
 
-		while(count_in < 3 && (++timer)<1000000){;}
+		while(dist_count[RIGHT] == 0){;}
 
+		while(!(dist_count[LEFT] <5 && dist_count[RIGHT] >= 5) && count_in < 3 && (++timer)<1000000){;}
+
+		cout<<"Semaforul din stange se face rosu"<<endl;
 		sem[LEFT] = false;
-
-		while(count_out <count_in){;}
 
 		sleep(3);
 
-		sem[RIGHT] = true;
+		while(count_out <count_in){;}
+
 		count_in = 0;
 		count_out = 0;
+		cout<<"Semaforul din dreapta se face verde"<<endl;
+		sem[RIGHT] = true;
 		timer = 0;
 
-		while(count_in < 3 && (++timer)<1000000){;}
+		while(dist_count[LEFT] == 0){;}
 
+		while(!(dist_count[LEFT] >= 5 && dist_count[RIGHT] < 5) && count_in < 3 && (++timer)<1000000){;}
+
+		cout<<"Semaforul din dreapta se face rosu"<<endl;
 		sem[RIGHT] = false;
 		timer = 0;
+		sleep(3);
 
 		while(count_out < count_in){;}
 	}
@@ -96,7 +121,8 @@ int main()
 	for(int i = 0; i < 100; i++)
 	{
 		int *x = new int;
-		*x = rand()%2;
+		//*x = rand()%2;
+		* x = 1;
 		pthread_create(&cars[i],NULL,car,x);
 	}
 
