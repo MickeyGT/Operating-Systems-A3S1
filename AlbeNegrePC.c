@@ -11,6 +11,7 @@ int lastUseBlack,lastUseWhite;
 pthread_mutex_t counter = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t whiteWait = PTHREAD_COND_INITIALIZER;
 pthread_cond_t blackWait = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t ownerMutex = PTHREAD_MUTEX_INITIALIZER;
 
 void useResource(int id, int color)
 {
@@ -18,9 +19,8 @@ void useResource(int id, int color)
     sleep(1);
 }
 
-int otherColorNotStarving(color)
+int otherColorNotStarving(int color)
 {
-    int otherColor;
     if(color==WHITE)
     {
         if((int)time(NULL)-lastUseBlack<=5)
@@ -71,15 +71,21 @@ int isOwner(int myColor)
     return myColor==owner;
 }
 
-void * Work(void *arg)
+void* doRoutine(void *arg)
 {
     int id,color;
-    srand(time(NULL));
-    color = rand()%2;
+    //srand(time(NULL));
+    //color = rand()%2;
     id = *((int*)arg);
+    if(id<5)
+        color=WHITE;
+    else
+        color=BLACK;
     free(arg);
     while(1)
     {
+        pthread_mutex_lock(&ownerMutex);
+        printf("Thread %d is using the mutex.",id);
         if(isOwner(color)&&otherColorNotStarving(color))
             useResource(id,color);
         else
@@ -92,6 +98,7 @@ void * Work(void *arg)
                 else
                     pthread_cond_wait(&blackWait,&ownerMutex);
             }
+        pthread_mutex_unlock(&ownerMutex);    
     }
 }
 
@@ -100,9 +107,10 @@ int main()
     pthread_t threads[100];
     for(int i=0;i<10;i++)
     {
-        int * id = (int)malloc (sizeof(int));
-        id=i;
-        pthread_create(&threads[i],NULL,Work,(void*)id);
+        int * id = (int*)malloc (sizeof(int));
+        *id=i;
+        pthread_create(&threads[i],NULL,doRoutine,(void*)id);
     }
     return 0;
 }
+
