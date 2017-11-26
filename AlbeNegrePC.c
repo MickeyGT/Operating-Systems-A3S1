@@ -19,7 +19,7 @@ void useResource(int id, int color)
     sleep(1);
 }
 
-int otherColorNotStarving(color)
+int otherColorNotStarving(int color)
 {
     int otherColor;
     if(color==WHITE)
@@ -78,7 +78,7 @@ int isOwner(int myColor)
 
 void* doRoutine(void *arg)
 {
-    int id,color;
+	int id,color;
     //srand(time(NULL));
     //color = rand()%2;
     id = *((int*)arg);
@@ -86,6 +86,7 @@ void* doRoutine(void *arg)
         color=WHITE;
     else
         color=BLACK;
+    printf("Thread number %d of color %d started.",id,color); 
     free(arg);
     while(1)
     {
@@ -107,6 +108,7 @@ void* doRoutine(void *arg)
 
 int main()
 {
+	printf("it's running");
     pthread_t threads[100];
     for(int i=0;i<10;i++)
     {
@@ -116,4 +118,3 @@ int main()
     }
     return 0;
 }
-
