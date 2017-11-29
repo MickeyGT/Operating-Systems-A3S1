@@ -19,22 +19,24 @@ void useResource(int id, int color)
     sleep(1);
 }
 
-int otherColorNotStarving(int color)
+int otherColorNotStarving(color)
 {
     int otherColor;
     if(color==WHITE)
     {
+        printf("%d",(int)time(NULL)-lastUseBlack);
         if((int)time(NULL)-lastUseBlack<=5)
-            return 0;
-        else
             return 1;
+        else
+            return 0;
     }
     else
     {
+        printf("%d",(int)time(NULL)-lastUseWhite);
         if((int)time(NULL)-lastUseWhite<=5)
-            return 0;
-        else
             return 1;
+        else
+            return 0;
     }
 }
 
@@ -50,6 +52,7 @@ void stopUsingWait(int id,int color)
         {
             pthread_mutex_lock(&ownerMutex);
             printf("All white are now done, giving control to black.\n");
+            lastUseWhite=(int)time(NULL);
             pthread_cond_signal(&blackWait);
             pthread_mutex_unlock(&ownerMutex); 
         }
@@ -63,6 +66,7 @@ void stopUsingWait(int id,int color)
         {
             pthread_mutex_lock(&ownerMutex);
             printf("All black are now done, giving control to white.\n");
+            lastUseBlack=(int)time(NULL);
             pthread_cond_signal(&whiteWait);
             pthread_mutex_unlock(&ownerMutex); 
         }
@@ -78,7 +82,7 @@ int isOwner(int myColor)
 
 void* doRoutine(void *arg)
 {
-	int id,color;
+    int id,color;
     //srand(time(NULL));
     //color = rand()%2;
     id = *((int*)arg);
@@ -86,7 +90,6 @@ void* doRoutine(void *arg)
         color=WHITE;
     else
         color=BLACK;
-    printf("Thread number %d of color %d started.",id,color); 
     free(arg);
     while(1)
     {
@@ -108,13 +111,16 @@ void* doRoutine(void *arg)
 
 int main()
 {
-	printf("it's running");
     pthread_t threads[100];
+    lastUseBlack=(int)time(NULL);
     for(int i=0;i<10;i++)
     {
         int * id = (int*)malloc (sizeof(int));
         *id=i;
         pthread_create(&threads[i],NULL,doRoutine,(void*)id);
     }
+    sleep(300);
     return 0;
 }
+
+
