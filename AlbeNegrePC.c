@@ -20,9 +20,19 @@ void useResource(int id, int color)
     {
         colorUsing[id]=1;
         if(color==WHITE)
+        {
+            pthread_mutex_lock(&counter);
             usingWhite++;
+            waitingWhite--;
+            pthread_mutex_unlock(&counter);
+        }
         else
+        {
+            pthread_mutex_lock(&counter);
             usingBlack++;
+            waitingBlack--;
+            pthread_mutex_unlock(&counter);
+        }
     }
     if(color==WHITE)
         lastUseWhite=(int)time(NULL);
@@ -32,12 +42,12 @@ void useResource(int id, int color)
     sleep(1);
 }
 
-int otherColorNotStarving(color)
+int otherColorNotStarving(int color)
 {
     int otherColor;
     if(color==WHITE)
     {
-        printf("%d",(int)time(NULL)-lastUseBlack);
+        printf("Time after switch:%d ",(int)time(NULL)-lastUseBlack);
         if((int)time(NULL)-lastUseBlack<=5)
             return 1;
         else
@@ -45,7 +55,7 @@ int otherColorNotStarving(color)
     }
     else
     {
-        printf("%d",(int)time(NULL)-lastUseWhite);
+        printf("Time after switch:%d ",(int)time(NULL)-lastUseWhite);
         if((int)time(NULL)-lastUseWhite<=5)
             return 1;
         else
@@ -100,7 +110,6 @@ void* doRoutine(void *arg)
     //srand(time(NULL));
     //color = rand()%2;
     id = *((int*)arg);
-    waitingBlack=5;
     if(id<5)
         color=WHITE;
     else
@@ -130,6 +139,8 @@ int main()
 {
     pthread_t threads[100];
     lastUseBlack=(int)time(NULL);
+    waitingBlack=5;
+    waitingWhite=5;
     for(int i=0;i<10;i++)
     {
         int * id = (int*)malloc (sizeof(int));
