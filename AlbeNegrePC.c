@@ -66,7 +66,7 @@ void stopUsingWait(int id,int color)
         {
             //pthread_mutex_lock(&ownerMutex);
             printf("All white are now done, giving control to black.\n");
-            pthread_cond_signal(&blackWait);
+            pthread_cond_broadcast(&blackWait);
             owner=BLACK;
             //pthread_mutex_unlock(&ownerMutex); 
         }
@@ -80,7 +80,7 @@ void stopUsingWait(int id,int color)
         {
             //pthread_mutex_lock(&ownerMutex);
             printf("All black are now done, giving control to white.\n");
-            pthread_cond_signal(&whiteWait);
+            pthread_cond_broadcast(&whiteWait);
             owner=WHITE;
             //pthread_mutex_unlock(&ownerMutex); 
         }
@@ -108,7 +108,6 @@ void* doRoutine(void *arg)
     free(arg);
     while(1)
     {
-        printf("Thread %d is using the mutex.",id);
         if(isOwner(color)&&otherColorNotStarving(color))
             useResource(id,color);
         else
@@ -140,10 +139,3 @@ int main()
     sleep(300);
     return 0;
 }
-
-
-
-
-
-
-
