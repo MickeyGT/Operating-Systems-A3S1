@@ -42,7 +42,7 @@ void useResource(int id, int color)
     sleep(1);
 }
 
-int otherColorNotStarving(color)
+int otherColorNotStarving(int color)
 {
     int otherColor;
     if(color==WHITE)
