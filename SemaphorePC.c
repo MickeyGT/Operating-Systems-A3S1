@@ -8,6 +8,8 @@
 #define RIGHT 1
 
 pthread_mutex_t counter = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t waitLeft = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t waitRight = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t tunnelWaitLeft = PTHREAD_COND_INITIALIZER;
 pthread_cond_t tunnelWaitRight = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t ownerMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -21,15 +23,15 @@ void* car(void *arg)
     int direction = *(int*)arg;
     if(direction==LEFT)
     {
-        pthread_mutex_lock(&counter);
+        pthread_mutex_lock(&waitLeft);
         carsWaitLeft++;
-        pthread_mutex_unlock(&counter);
+        pthread_mutex_unlock(&waitLeft);
     }
     else
     {
-        pthread_mutex_lock(&counter);
+        pthread_mutex_lock(&waitRight);
         carsWaitRight++;
-        pthread_mutex_unlock(&counter);
+        pthread_mutex_unlock(&waitRight);
     }
 	free(arg);
 	if(semafor[direction]==0)
@@ -97,17 +99,20 @@ void * controlCenter(void *arg)
                 {
                     pthread_mutex_lock(&counter);
 	                carsin++;
-	                carsWaitLeft--;
 	                pthread_mutex_unlock(&counter);
+	                pthread_mutex_lock(&waitLeft);
+                    carsWaitLeft--;
+                    pthread_mutex_unlock(&waitLeft);
 	                pthread_cond_signal(&tunnelWaitLeft);
-	                sleep(1);
 	                lastUseLeft=(int)time(NULL);
+	                sleep(1);
                 }
-            printf("LEFT side semaphore is RED\n");
-            semafor[LEFT]=0;
+           
             while(carsin!=0){;}
             if(carsWaitRight!=0)
             {
+                semafor[LEFT]=0;
+                printf("LEFT side semaphore is RED\n");
                 semafor[RIGHT]=1;
                 printf("RIGHT side smeaphore is GREEN\n");
             }
@@ -122,11 +127,13 @@ void * controlCenter(void *arg)
                 {
                     pthread_mutex_lock(&counter);
 	                carsin++;
-	                carsWaitRight--;
 	                pthread_mutex_unlock(&counter);
+	                pthread_mutex_lock(&waitRight);
+                    carsWaitRight--;
+                    pthread_mutex_unlock(&waitRight);
 	                pthread_cond_signal(&tunnelWaitRight);
-	                sleep(1);
 	                lastUseRight=(int)time(NULL);
+	                sleep(1);
                 }
             while(carsin!=0){;}
             if(carsWaitLeft!=0)
@@ -159,4 +166,15 @@ int main()
     sleep(300);
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
 
