@@ -34,13 +34,13 @@ void* car(void *arg)
         pthread_mutex_unlock(&waitRight);
     }
 	free(arg);
-	if(semafor[direction]==0)
-	{
-	    if(direction==LEFT)
-	        pthread_cond_wait(&tunnelWaitLeft,&ownerMutex);
-	    else
-	        pthread_cond_wait(&tunnelWaitRight,&ownerMutex);
-	}
+	//sleep(5);
+
+    if(direction==LEFT)
+        pthread_cond_wait(&tunnelWaitLeft,&ownerMutex);
+    else
+        pthread_cond_wait(&tunnelWaitRight,&ownerMutex);
+	
 	printf("Car coming from direction %d entering tunnel.\n",direction);
 	sleep(5);
 	pthread_mutex_lock(&counter);
@@ -63,7 +63,7 @@ int otherSideNotStarving(int type)
         else
         {
             printf("Time after switch:%d ",(int)time(NULL)-lastUseRight);
-            if((int)time(NULL)-lastUseRight<=7)
+            if((int)time(NULL)-lastUseRight<=4)
                 return 1;
             else
                 return 0;
@@ -76,7 +76,7 @@ int otherSideNotStarving(int type)
         else
         {
             printf("Time after switch:%d ",(int)time(NULL)-lastUseLeft);
-            if((int)time(NULL)-lastUseLeft<=7)
+            if((int)time(NULL)-lastUseLeft<=4)
                 return 1;
             else
                 return 0;
@@ -86,7 +86,7 @@ int otherSideNotStarving(int type)
 
 void * controlCenter(void *arg)
 {
-    sleep(5);
+    sleep(3);
     semafor[LEFT]=1;
     lastUseRight=(int)time(NULL);
     printf("LEFT side semaphore is GREEN\n");
@@ -97,6 +97,7 @@ void * controlCenter(void *arg)
         {
             while(otherSideNotStarving(LEFT)&&carsWaitLeft!=0)
                 {
+                    printf("Clearing 1 car coming from LEFT to enter tunnel.\n");
                     pthread_mutex_lock(&counter);
 	                carsin++;
 	                pthread_mutex_unlock(&counter);
@@ -118,13 +119,14 @@ void * controlCenter(void *arg)
             }
             else
             {
-                printf("No cars on right side, keeping left semaphore GREEN");
+                printf("No cars on right side, keeping left semaphore GREEN\n");
             }
         }
         if(semafor[RIGHT]==1)
         {
             while(otherSideNotStarving(RIGHT)&&carsWaitRight!=0)
                 {
+                    printf("Clearing 1 car coming from RIGHT to enter tunnel.\n");
                     pthread_mutex_lock(&counter);
 	                carsin++;
 	                pthread_mutex_unlock(&counter);
@@ -157,15 +159,20 @@ int main()
     pthread_t threads[100];
     pthread_t control_center;
     pthread_create(&control_center,NULL,controlCenter,NULL);
-    for(int i=0;i<100;i++)
+    for(int i=0;i<30;i++)
     {
         int * direction = (int*)malloc (sizeof(int));
-        *direction = rand()%2;
+        //*direction = rand()%2;
+        if(i<=14)
+            *direction=0;
+        else
+            *direction=1;
         pthread_create(&threads[i],NULL,car,(void*)direction);
     }
     sleep(300);
     return 0;
 }
+
 
 
 
