@@ -47,7 +47,7 @@ int otherColorNotStarving(int color)
     int otherColor;
     if(color==WHITE)
     {
-        printf("Time after switch:%d ",(int)time(NULL)-lastUseBlack);
+        //printf("Time after switch:%d ",(int)time(NULL)-lastUseBlack);
         if((int)time(NULL)-lastUseBlack<=5)
             return 1;
         else
@@ -55,7 +55,7 @@ int otherColorNotStarving(int color)
     }
     else
     {
-        printf("Time after switch:%d ",(int)time(NULL)-lastUseWhite);
+        //printf("Time after switch:%d ",(int)time(NULL)-lastUseWhite);
         if((int)time(NULL)-lastUseWhite<=5)
             return 1;
         else
@@ -65,43 +65,51 @@ int otherColorNotStarving(int color)
 
 void stopUsingWait(int id,int color)
 {
-    pthread_mutex_lock(&counter);
-    colorUsing[id]=0;
-    if(color==WHITE)
+    if(colorUsing[id]==1)
     {
-        waitingWhite++;
-        usingWhite--;
-        printf("Thread %d is now giving his place.\n",id);
-        if(usingWhite==0)
+        colorUsing[id]=0;
+        if(color==WHITE)
         {
-            //pthread_mutex_lock(&ownerMutex);
-            printf("All white are now done, giving control to black.\n");
-            pthread_cond_broadcast(&blackWait);
-            owner=BLACK;
-            //pthread_mutex_unlock(&ownerMutex); 
+            pthread_mutex_lock(&counter);
+            waitingWhite++;
+            usingWhite--;
+            pthread_mutex_unlock(&counter);
+            printf("Thread %d is now giving his place.\n",id);
+            if(usingWhite==0)
+            {
+                //pthread_mutex_lock(&ownerMutex);
+                printf("All white are now done, giving control to black.\n");
+                owner=BLACK;
+                sleep(1);
+                pthread_cond_broadcast(&blackWait);
+                //pthread_mutex_unlock(&ownerMutex); 
+            }
+        }
+        else
+        {
+            pthread_mutex_lock(&counter);
+            waitingBlack++;
+            usingBlack--;
+            pthread_mutex_unlock(&counter);
+            printf("Thread %d is now giving his place.\n",id);
+            if(usingBlack==0)
+            {
+                //pthread_mutex_lock(&ownerMutex);
+                printf("All black are now done, giving control to white.\n");
+                owner=WHITE;
+                sleep(1);
+                pthread_cond_broadcast(&whiteWait);
+                //pthread_mutex_unlock(&ownerMutex); 
+            }
         }
     }
-    else
-    {
-        waitingBlack++;
-        usingBlack--;
-        printf("Thread %d is now giving his place.\n",id);
-        if(usingBlack==0)
-        {
-            //pthread_mutex_lock(&ownerMutex);
-            printf("All black are now done, giving control to white.\n");
-            pthread_cond_broadcast(&whiteWait);
-            owner=WHITE;
-            //pthread_mutex_unlock(&ownerMutex); 
-        }
-    }
-    
-    pthread_mutex_unlock(&counter);
 }
 
 int isOwner(int myColor)
 {
+    
     return myColor==owner;
+    
 }
 
 void* doRoutine(void *arg)
@@ -126,10 +134,12 @@ void* doRoutine(void *arg)
             {
                 while(!(isOwner(color)))
                 {
+                    pthread_mutex_lock(&ownerMutex);
                     if(color==WHITE)
                         pthread_cond_wait(&whiteWait,&ownerMutex);
                     else
                         pthread_cond_wait(&blackWait,&ownerMutex);
+                    pthread_mutex_unlock(&ownerMutex);    
                 }
             }
     }
@@ -147,6 +157,6 @@ int main()
         *id=i;
         pthread_create(&threads[i],NULL,doRoutine,(void*)id);
     }
-    sleep(300);
+    sleep(30);
     return 0;
 }
