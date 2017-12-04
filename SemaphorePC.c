@@ -37,33 +37,47 @@ void* car(void *arg)
 	//sleep(5);
 
     if(direction==LEFT)
+    {
+        pthread_mutex_lock(&ownerMutex);
         pthread_cond_wait(&tunnelWaitLeft,&ownerMutex);
-    else
-        pthread_cond_wait(&tunnelWaitRight,&ownerMutex);
-	
-	printf("Car coming from direction %d entering tunnel.\n",direction);
-	sleep(5);
-	pthread_mutex_lock(&counter);
-	carsin--;
-	pthread_mutex_unlock(&counter);
-	printf("Car coming from direction %d exiting tunnel.\n",direction);
-	
-	if(direction==LEFT)
+        printf("Car coming from direction LEFT entering tunnel.\n");
+	    pthread_mutex_unlock(&ownerMutex);
+	    sleep(5);
 	    lastUseLeft=(int)time(NULL);
-	else
-	    lastUseRight=(int)time(NULL);
+	    pthread_mutex_lock(&counter);
+	    carsin--;
+	    pthread_mutex_unlock(&counter);
+	    printf("Car coming from direction LEFT exiting tunnel.\n");
+	    return;
+    }
+    else
+    {
+        pthread_mutex_lock(&ownerMutex);
+        pthread_cond_wait(&tunnelWaitRight,&ownerMutex);
+        printf("Car coming from direction RIGHT entering tunnel.\n");
+        pthread_mutex_unlock(&ownerMutex);
+        sleep(5);
+        lastUseRight=(int)time(NULL);
+        pthread_mutex_lock(&counter);
+	    carsin--;
+	    pthread_mutex_unlock(&counter);
+        printf("Car coming from direction RIGHT exiting tunnel.\n");
+        return;
+    }
 }
 
 int otherSideNotStarving(int type)
 {
+    int currTime;
+    currTime=(int)time(NULL);
     if(type==LEFT)
     {
         if(carsWaitRight==0)
             return 1;
         else
         {
-            printf("Time after switch:%d ",(int)time(NULL)-lastUseRight);
-            if((int)time(NULL)-lastUseRight<=4)
+            //printf("Time after switch:%d ",(int)time(NULL)-lastUseRight);
+            if(currTime-lastUseRight<=4)
                 return 1;
             else
                 return 0;
@@ -75,8 +89,8 @@ int otherSideNotStarving(int type)
             return 1;
         else
         {
-            printf("Time after switch:%d ",(int)time(NULL)-lastUseLeft);
-            if((int)time(NULL)-lastUseLeft<=4)
+            //printf("Time after switch:%d ",(int)time(NULL)-lastUseLeft);
+            if(currTime-lastUseLeft<=4)
                 return 1;
             else
                 return 0;
@@ -105,10 +119,8 @@ void * controlCenter(void *arg)
                     carsWaitLeft--;
                     pthread_mutex_unlock(&waitLeft);
 	                pthread_cond_signal(&tunnelWaitLeft);
-	                lastUseLeft=(int)time(NULL);
 	                sleep(1);
                 }
-           
             while(carsin!=0){;}
             if(carsWaitRight!=0)
             {
@@ -118,9 +130,14 @@ void * controlCenter(void *arg)
                 printf("RIGHT side smeaphore is GREEN\n");
             }
             else
-            {
-                printf("No cars on right side, keeping left semaphore GREEN\n");
-            }
+                if(carsWaitLeft==0)
+                {
+                    printf("No more cars on either side. Exiting.\n");
+                }
+                else
+                {
+                    printf("No cars on right side, keeping left semaphore GREEN\n");
+                }
         }
         if(semafor[RIGHT]==1)
         {
@@ -134,7 +151,6 @@ void * controlCenter(void *arg)
                     carsWaitRight--;
                     pthread_mutex_unlock(&waitRight);
 	                pthread_cond_signal(&tunnelWaitRight);
-	                lastUseRight=(int)time(NULL);
 	                sleep(1);
                 }
             while(carsin!=0){;}
@@ -146,9 +162,14 @@ void * controlCenter(void *arg)
                 printf("RIGHT side smeaphore is RED\n");
             }
             else
-            {
-                printf("No cars on left side, keeping right semaphore GREEN");
-            }
+                if(carsWaitLeft==0)
+                {
+                    printf("No more cars on either side. Exiting.\n");
+                }
+                else
+                {
+                    printf("No cars on left side, keeping right semaphore GREEN");
+                }
         }
     }
 }
@@ -163,7 +184,7 @@ int main()
     {
         int * direction = (int*)malloc (sizeof(int));
         //*direction = rand()%2;
-        if(i<=14)
+        if(i<=3)
             *direction=0;
         else
             *direction=1;
@@ -172,6 +193,7 @@ int main()
     sleep(300);
     return 0;
 }
+
 
 
 
