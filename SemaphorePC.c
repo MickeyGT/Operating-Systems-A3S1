@@ -17,7 +17,7 @@ pthread_mutex_t ownerMutex = PTHREAD_MUTEX_INITIALIZER;
 int semafor[2]={0,0};
 int carsin,carsWaitLeft,carsWaitRight;
 int lastUseRight,lastUseLeft;
-
+int useless;
 void* car(void *arg)
 {
     int direction = *(int*)arg;
@@ -73,7 +73,10 @@ int otherSideNotStarving(int type)
     if(type==LEFT)
     {
         if(carsWaitRight==0)
+        {
+            printf("No cars on right side, keeping left semaphore GREEN\n");
             return 1;
+        }
         else
         {
             //printf("Time after switch:%d ",(int)time(NULL)-lastUseRight);
@@ -86,7 +89,10 @@ int otherSideNotStarving(int type)
     else
     {
         if(carsWaitLeft==0)
+        {
+            printf("No cars on left side, keeping right semaphore GREEN\n");
             return 1;
+        }
         else
         {
             //printf("Time after switch:%d ",(int)time(NULL)-lastUseLeft);
@@ -121,11 +127,12 @@ void * controlCenter(void *arg)
 	                pthread_cond_signal(&tunnelWaitLeft);
 	                sleep(1);
                 }
-            while(carsin!=0){;}
+            semafor[LEFT]=0;
+            printf("LEFT side semaphore is RED\n");    
+            while(carsin!=0)
+                useless++;
             if(carsWaitRight!=0)
             {
-                semafor[LEFT]=0;
-                printf("LEFT side semaphore is RED\n");
                 semafor[RIGHT]=1;
                 printf("RIGHT side smeaphore is GREEN\n");
             }
@@ -133,10 +140,7 @@ void * controlCenter(void *arg)
                 if(carsWaitLeft==0)
                 {
                     printf("No more cars on either side. Exiting.\n");
-                }
-                else
-                {
-                    printf("No cars on right side, keeping left semaphore GREEN\n");
+                    return;
                 }
         }
         if(semafor[RIGHT]==1)
@@ -153,22 +157,21 @@ void * controlCenter(void *arg)
 	                pthread_cond_signal(&tunnelWaitRight);
 	                sleep(1);
                 }
-            while(carsin!=0){;}
+            printf("RIGHT side smeaphore is RED\n");
+            semafor[RIGHT]=0;
+            while(carsin!=0)
+                useless++;
             if(carsWaitLeft!=0)
             {
-                semafor[RIGHT]=0;
                 semafor[LEFT]=1;
                 printf("LEFT side semaphore is GREEN\n");
-                printf("RIGHT side smeaphore is RED\n");
+                
             }
             else
                 if(carsWaitLeft==0)
                 {
                     printf("No more cars on either side. Exiting.\n");
-                }
-                else
-                {
-                    printf("No cars on left side, keeping right semaphore GREEN");
+                    return;
                 }
         }
     }
@@ -184,7 +187,7 @@ int main()
     {
         int * direction = (int*)malloc (sizeof(int));
         //*direction = rand()%2;
-        if(i<=3)
+        if(i<=5)
             *direction=0;
         else
             *direction=1;
@@ -193,17 +196,3 @@ int main()
     sleep(300);
     return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
