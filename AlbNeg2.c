@@ -6,7 +6,8 @@
 #include<time.h>
 #define BLACK 1
 #define WHITE 0
-int owner=WHITE,usingWhite=0,usingBlack=0;
+#define INTERMEDIATE 2
+int owner=WHITE,usingWhite=0,usingBlack=0,stopping=0,waitingWhite=0,waitingBlack=0;
 int lastUseBlack,lastUseWhite;
 pthread_mutex_t counter = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t whiteWait = PTHREAD_COND_INITIALIZER;
@@ -21,10 +22,14 @@ void useResource(int id, int color)
         usingWhite++;
     else
         usingBlack++;
-    
     pthread_mutex_unlock(&counter);
     sleep(2);
-    stopUsing(id,color);
+    pthread_mutex_lock(&counter);
+    if(color==WHITE)
+        usingWhite--;
+    else
+        usingBlack--;
+     pthread_mutex_unlock(&counter);
 }
 
 int colorStarving(int color)
@@ -50,27 +55,31 @@ int colorStarving(int color)
 
 void stopUsing(int id,int color)
 {
+    printf("Thread %d with color %d is switching the owner color.\n",id,color);
     if(color==WHITE)
     {
-        pthread_mutex_lock(&counter);
-        usingWhite--;
-        pthread_mutex_unlock(&counter);
+        owner=INTERMEDIATE;
+        stopping=1;
         while(usingWhite!=0){;}
         printf("All white are now done, giving control to black.\n");
+        lastUseWhite=(int)time(NULL);
         sleep(1);
         pthread_cond_broadcast(&blackWait);
+        owner=BLACK;
     }
     else
     {
-        pthread_mutex_lock(&counter);
-        usingBlack--;
-        pthread_mutex_unlock(&counter);
+        owner=INTERMEDIATE;
+        stopping=1;
         while(usingBlack!=0){;}
         printf("All black are now done, giving control to white.\n");
+        lastUseBlack=(int)time(NULL);
         owner=WHITE;
         sleep(1);
         pthread_cond_broadcast(&whiteWait);
+        owner=WHITE;
     }
+    
 }
 
 int isOwner(int myColor)
@@ -85,47 +94,55 @@ void* doRoutine(void *arg)
     color = rand()%2;
     id = *((int*)arg);
     free(arg);
-    while(!(isOwner(color)))
+    if(!(isOwner(color)))
     {
         printf("Thread %d with color %d is waiting\n",id,color);
+        pthread_mutex_lock(&counter);
+        if(color==WHITE)
+            waitingWhite++;
+        else
+            waitingBlack++;
+        pthread_mutex_unlock(&counter);
+    }
+    while(!(isOwner(color)))
+    {
         pthread_mutex_lock(&ownerMutex);
         if(color==WHITE)
+        {
             pthread_cond_wait(&whiteWait,&ownerMutex);
+            waitingWhite--;
+        }
         else
+        {
             pthread_cond_wait(&blackWait,&ownerMutex);
+            waitingBlack--;
+        }
         pthread_mutex_unlock(&ownerMutex);    
     }
     if(color==WHITE)
     {
         if(colorStarving(BLACK))
         {
-            owner=BLACK;
+            usingWhite--;
             stopUsing(id,color);
         }
         else
         {
             useResource(id,color);
-             pthread_mutex_lock(&counter);
-            usingWhite--;
-            pthread_mutex_unlock(&counter);
         }
     }
     else
     {
         if(colorStarving(WHITE))
         {
-            owner=WHITE;
+            usingBlack--;
             stopUsing(id,color);
         }
         else
         {
             useResource(id,color);
-            pthread_mutex_lock(&counter);
-            usingBlack--;
-            pthread_mutex_unlock(&counter);
         }
     }
-   
     return;
 }
 
@@ -133,7 +150,8 @@ int main()
 {
     pthread_t threads[100];
     lastUseBlack=(int)time(NULL);
-    for(int i=0;i<100;i++)
+    lastUseWhite=(int)time(NULL);
+    for(int i=0;i<20;i++)
     {
         int * id = (int*)malloc (sizeof(int));
         *id=i;
@@ -143,3 +161,7 @@ int main()
     sleep(20);
     return 0;
 }
+
+
+
+
