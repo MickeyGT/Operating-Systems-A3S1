@@ -41,14 +41,28 @@ int colorStarving(int color)
         if((int)time(NULL)-lastUseWhite<=5)
             return 0;
         else
+        {
+            if(waitingWhite==0)
+            {
+                printf("Color WHITE is starving but there are no WHITE threads waiting.\n");
+                return 0;
+            }
             return 1;
+        }
     }
     else
     {
         if((int)time(NULL)-lastUseBlack<=5)
             return 0;
         else
+        {
+            if(waitingBlack==0)
+            {
+                printf("Color BLACK is starving but there are no BLACK threads waiting.\n");
+                return 0;
+            }
             return 1;
+        }
     }
 }
 
@@ -57,49 +71,30 @@ void stopUsing(int id,int color)
     printf("Thread %d with color %d is switching the owner color.\n",id,color);
     if(color==WHITE)
     {
-        pthread_mutex_lock(&ownerMutex);
         owner=INTERMEDIATE;
-        pthread_mutex_unlock(&ownerMutex);
         while(usingWhite!=0){sleep(1);}
         printf("All white are now done, giving control to black.\n");
         lastUseWhite=(int)time(NULL);
         sleep(1);
         pthread_cond_broadcast(&blackWait);
-        pthread_mutex_lock(&ownerMutex);
         owner=BLACK;
-        pthread_mutex_unlock(&ownerMutex);
     }
     else
     {
-        pthread_mutex_lock(&ownerMutex);
         owner=INTERMEDIATE;
-        pthread_mutex_unlock(&ownerMutex);
         while(usingBlack!=0){sleep(1);}
         printf("All black are now done, giving control to white.\n");
         lastUseBlack=(int)time(NULL);
         sleep(1);
         pthread_cond_broadcast(&whiteWait);
-        pthread_mutex_lock(&ownerMutex);
         owner=WHITE;
-        pthread_mutex_unlock(&ownerMutex);
     }
     
 }
 
 int isOwner(int myColor)
 {
-    pthread_mutex_lock(&ownerMutex);
-    if(myColor==owner)
-    {
-        pthread_mutex_unlock(&ownerMutex);
-        return 1;
-    }
-    else
-    {
-        pthread_mutex_unlock(&ownerMutex);
-        return 0;
-    }
-    
+    return myColor==owner;
 }
 
 void* doRoutine(void *arg)
@@ -108,6 +103,7 @@ void* doRoutine(void *arg)
     id = *((int*)arg);
     srand(time(NULL));
     color = rand()%2;
+    //color= WHITE;
     free(arg);
     if(!(isOwner(color)))
     {
