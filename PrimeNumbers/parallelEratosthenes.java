@@ -16,7 +16,7 @@ public class parallelEratosthenes
 
 	public void execute()
 	{
-		semaphore = new Semaphore(nrThreads);
+		semaphore = new Semaphore(nrThreads,true);
 		start = System.nanoTime();
 		doEratosthenes();
 		end = System.nanoTime();
