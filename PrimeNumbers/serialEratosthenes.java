@@ -13,9 +13,9 @@ public class serialEratosthenes
 
 	public void execute()
 	{
-		start = System.currentTimeMillis();
+		start = System.nanoTime();
 		doEratosthenes();
-		end = System.currentTimeMillis();
+		end = System.nanoTime();
 		System.out.println("Serial took "+(end-start));
 	}
 
