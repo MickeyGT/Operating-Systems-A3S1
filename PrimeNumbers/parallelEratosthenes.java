@@ -17,9 +17,9 @@ public class parallelEratosthenes
 	public void execute()
 	{
 		semaphore = new Semaphore(nrThreads);
-		start = System.currentTimeMillis();
+		start = System.nanoTime();
 		doEratosthenes();
-		end = System.currentTimeMillis();
+		end = System.nanoTime();
 		System.out.println("Parallel with "+nrThreads+" took "+(end-start));
 	}
 
@@ -32,6 +32,7 @@ public class parallelEratosthenes
 			{
 				try
 				{
+					//System.out.print(i+" ");
 					semaphore.acquire();
 					parallelThread pthread = new parallelThread(i);
 					pthread.run();
