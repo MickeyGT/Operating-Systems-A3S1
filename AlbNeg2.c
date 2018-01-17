@@ -12,6 +12,7 @@ int lastUseBlack,lastUseWhite;
 pthread_mutex_t counter = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t whiteWait = PTHREAD_COND_INITIALIZER;
 pthread_cond_t blackWait = PTHREAD_COND_INITIALIZER;
+pthread_cond_t counterWait = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t ownerMutex = PTHREAD_MUTEX_INITIALIZER;
 
 void useResource(int id, int color)
@@ -28,16 +29,25 @@ void useResource(int id, int color)
     
     pthread_mutex_lock(&counter);
     if(color==WHITE)
+    {
         usingWhite--;
+        if(usingWhite==0)
+            pthread_cond_signal(&counterWait);
+    }
     else
+    {
         usingBlack--;
-     pthread_mutex_unlock(&counter);
+        if(usingBlack==0)
+            pthread_cond_signal(&counterWait);
+    }
+    pthread_mutex_unlock(&counter);
 }
 
 int colorStarving(int color)
 {
     if(color==WHITE)
     {
+        printf(" %d",(int)time(NULL)-lastUseWhite);
         if((int)time(NULL)-lastUseWhite<=5)
             return 0;
         else
@@ -52,6 +62,7 @@ int colorStarving(int color)
     }
     else
     {
+        printf(" %d",(int)time(NULL)-lastUseBlack);
         if((int)time(NULL)-lastUseBlack<=5)
             return 0;
         else
@@ -66,30 +77,38 @@ int colorStarving(int color)
     }
 }
 
-void stopUsing(int id,int color)
+void switchOwner(int id,int color)
 {
-    printf("Thread %d with color %d is switching the owner color.\n",id,color);
-    if(color==WHITE)
+    if(!isOwner(INTERMEDIATE))
     {
-        owner=INTERMEDIATE;
-        while(usingWhite!=0){sleep(1);}
-        printf("All white are now done, giving control to black.\n");
-        lastUseWhite=(int)time(NULL);
-        sleep(1);
-        pthread_cond_broadcast(&blackWait);
-        owner=BLACK;
+        printf("Thread %d with color %d is switching the owner color.\n",id,color);
+        if(color==WHITE)
+        {
+            owner=INTERMEDIATE;
+            while(usingWhite!=0)
+            {
+                pthread_cond_wait(&counterWait,&counter);
+            }
+            printf("All white are now done, giving control to black.\n");
+            sleep(1);
+            lastUseWhite=(int)time(NULL);
+            pthread_cond_broadcast(&blackWait);
+            owner=BLACK;
+        }
+        else
+        {
+            owner=INTERMEDIATE;
+            while(usingBlack!=0)
+            {
+                pthread_cond_wait(&counterWait,&counter);
+            }
+            printf("All black are now done, giving control to white.\n");
+            sleep(1);
+            lastUseBlack=(int)time(NULL);
+            pthread_cond_broadcast(&whiteWait);
+            owner=WHITE;
+        }
     }
-    else
-    {
-        owner=INTERMEDIATE;
-        while(usingBlack!=0){sleep(1);}
-        printf("All black are now done, giving control to white.\n");
-        lastUseBlack=(int)time(NULL);
-        sleep(1);
-        pthread_cond_broadcast(&whiteWait);
-        owner=WHITE;
-    }
-    
 }
 
 int isOwner(int myColor)
@@ -97,14 +116,8 @@ int isOwner(int myColor)
     return myColor==owner;
 }
 
-void* doRoutine(void *arg)
+void getAccess(int id,int color)
 {
-    int id,color;
-    id = *((int*)arg);
-    srand(time(NULL));
-    color = rand()%2;
-    //color= WHITE;
-    free(arg);
     if(!(isOwner(color)))
     {
         printf("Thread %d with color %d is waiting\n",id,color);
@@ -132,28 +145,35 @@ void* doRoutine(void *arg)
         
         pthread_mutex_unlock(&ownerMutex);    
     }
-    if(color==WHITE)
-    {
-        if(colorStarving(BLACK))
-        {
-            stopUsing(id,color);
-        }
-        else
-        {
-            useResource(id,color);
-        }
-    }
-    else
-    {
-        if(colorStarving(WHITE))
-        {
-            stopUsing(id,color);
-        }
-        else
-        {
-            useResource(id,color);
-        }
-    }
+    
+}
+
+struct proces
+{
+    int id;
+    int color;
+}temp;
+
+typedef struct proces proces;
+
+void releaseAccess(int id,int color)
+{
+    if((color==WHITE&&colorStarving(BLACK))||(color==BLACK&&colorStarving(WHITE)))
+        switchOwner(id,color);
+}
+
+void* doRoutine(void *arg)
+{
+    proces pr;
+    pr = *((proces*)arg);
+    free(arg);
+
+    getAccess(pr.id,pr.color);
+    
+    useResource(pr.id,pr.color);
+    
+    releaseAccess(pr.id,pr.color);
+    
     return;
 }
 
@@ -162,16 +182,22 @@ int main()
     pthread_t threads[300];
     lastUseBlack=(int)time(NULL);
     lastUseWhite=(int)time(NULL);
-    for(int i=0;i<200;i++)
+    for(int i=0;i<50;i++)
     {
-        int * id = (int*)malloc (sizeof(int));
-        *id=i;
-        pthread_create(&threads[i],NULL,doRoutine,(void*)id);
+        //color= WHITE;
+        srand(time(NULL));
+        int clr = rand()%2;
+        proces * tr = (proces*)malloc (sizeof(proces));
+        tr->id=i;
+        tr->color=clr;
+        pthread_create(&threads[i],NULL,doRoutine,(void*)tr);
         sleep(1);
     }
     sleep(205);
     return 0;
 }
+
+
 
 
 
